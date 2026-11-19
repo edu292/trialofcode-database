@@ -1,5 +1,7 @@
 package db0203
 
+import "slices"
+
 type KV struct {
 	log Log
 	mem map[string][]byte
@@ -44,7 +46,26 @@ const (
 	ModeUpdate UpdateMode = 2 // update existing
 )
 
-func (kv *KV) SetEx(key []byte, val []byte, mode UpdateMode) (updated bool, err error)
+func (kv *KV) SetEx(key []byte, val []byte, mode UpdateMode) (updated bool, err error) {
+	key_str := string(key)
+	prev, exist := kv.mem[key_str]
+	switch mode {
+	case ModeInsert:
+		if exist {
+			return false, nil
+		}
+	case ModeUpdate:
+		if !exist || slices.Equal(prev, val) {
+			return false, nil
+		}
+	}
+	if err = kv.log.Write(&Entry{key: key, val: val}); err != nil {
+		return false, err
+	}
+
+	kv.mem[key_str] = val
+	return true, nil
+}
 
 func (kv *KV) Set(key []byte, val []byte) (updated bool, err error) {
 	return kv.SetEx(key, val, ModeUpsert)
